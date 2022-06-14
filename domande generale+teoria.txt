@@ -1,0 +1,812 @@
+DOMANDE
+-perché uno scheduler round-robin può essere inadatto a gestire processi con I/O multimediale?
+I processi con I/O multimendiale dovrebbero avere priorità sugli altri, per poter garantire il loro servizio in modo continuo (es streaming video).
+Round-robin essendo democratico non consentirebbe un servizio continuo del processo, creando disfunzionalità
+
+-per risolvere un problema di trashing è necessario terminare forzatamente dei processi o è sufficiente bloccare l'esecuzione di qualche processo e riattivarli successivamente? Perché?
+E' sufficiente bloccare dei processi affinchè liberino i frame occupati (liberino working set) e consentino alle pagine di altri processi di utilizzarli ed evitare troppi page fault
+
+-con lo stesso numero di dischi, RAID1 o RAID5 consente di memorizzare più dati? Perché? Quale è più sicuro? Perché?
+RAID 5 poichè non presenta ridondanza di dati (garantisce sicurezza tramite blocchi di parità sparsi sui vari dischi). E' più sicuro RAID 1 per vantaggio del mirroring
+che garantisce la rottura di più dischi (non duplicati) contemporaneamente anche se RAID 5 tollera la rottura di un disco ed è più efficiente
+
+-perché è difficile revocare una autorizzazione fornita tramite una capability?
+ Essendo fornite ai domini e quindi ai soggetti, sono difficili da revocare se non modificando i metodi di accesso alle risorse, obbligando i processi a chiderle nuovamente
+
+-perché l'invenzione degli interrupt ha reso i sistemi operativi più efficienti?
+ Ha permesso di far gestire ai DEVICE la terminazione di operazioni di I/O indipendentemente dalle op della CPU. Il SO non deve attendere in busy waiting che I/O termini
+
+- ha senso utilizzare RAID 5 con due dischi?
+ Non del tutto, ogni disco è diviso in due parti, una delle quali è lo strip di parità. Ha più senso usare RAID 1 per duplicare il disco così in caso di disco rotto
+ è possibile leggere/scrivere sull'altro disco senza dover fare op di recovery
+
+-in quali casi entra in funzione il paginatore in un sistema di memoria virtuale e quando viene richiamato l'algoritmo di rimpiazzamento?
+ Paginatore entra in funzione quando si deve caricare o togliere una pagina da un frame in memoria primaria. 
+ Se non ci sono frame liberi l'alg di rimpiazzamento deve stabilire quale pagina togliere per inserire questa nuova.
+
+-quali sono i vantaggi e quali gli svantaggi dell'utilizzo di LIBRERIE DINAMICHE?
+ vantaggi: risparmio di memoria per dimensioni ridotte di file (lib è caricata solo se necessaria) e aggiornamento automatico delle versioni di libreria senza dover ricompilare tutto per una modifica
+ svantaggi: problemi di 'versioning', cioè conflitto tra versioni istallate di una stessa libreria
+
+-perché una system call non può essere implementata come una normale chiamata di funzione ad un indirizzo del kernel?
+  Poichè una sys è una chiamata di procedura speciale effettuabile solo da processi in kernel mode
+
+-il calcolo del working set dipende dall'algoritmo di rimpiazzamento utilizzato? Perché?
+ Non dipende dall'alg poichè il WS definisce le pagine attive in memoria utilizzate da un processo in un certo delta temporale, quindi dipende dalla stringa di riferimenti e il delta scelto
+
+-discutere la scelta di usare un fs FAT per una partizione contenente file soggetti a frequenti aggiornamenti e variazione di dimensione. E' una scelta appropriata o no? perché?
+ Appropriata per gestire la variazione di dimensioni aggiungendo un puntatori ad altri blocchi. Fs FAT svantaggioso in questo caso per i frequenti aggiornamenti che richiederebbero molti accessi al disco.
+ Sarebbe più opportuno un fs con allocazione indicizzata multilivello che permetta accesso diretto ai file per gli aggiornamenti e permetta di allocare .
+
+-quando viene richiamato l'algoritmo del Banchiere e cosa succede se il risultato dell'algoritmo mostra che lo stato non è safe?
+ Alg entra in funzione ogni volta che un processo fa una richiesta o un rilascio. Se mostra che lo stato è unsafe il processo che ha fatto tale richiesta è messo in attesa ed è ripristinato l'ultimo stato safe
+ in attesa che un proc rilasci le proprie risorse o ci sia una richiesta soddisfacibile
+
+-dati 4 dischi da 1GiB, si possono memorizzare più dati usando una organizzazione RAID1 o RAID5? Perché?
+ RAID 5 poichè RAID1 essendo soggetta a mirring occuperà due dischi con dati ridondanti, mentre RAID5 occuperà in tot 3 dischi per i dati e 1 (equivalente alla somma 
+ di strip di parità) per la parità
+
+-dimostrare che se un algoritmo di rimpiazzamento è a stack allora non può soffrire della anomalia di Belady
+  Due insiemi St1(s, A,m) e St2(s, A,m+1), il primo sott’insieme del secondo e supponiamo che il primo abbia (p1,p2,p3,…) elem, mentre il secondo abbia (p1,p2,p3,…,p0) elem
+  caso 1: la pagina sta in p1, p2, p3 → non c’è page-fault né con ampiezza m né con ampiezza m+1
+  caso 2: la pagina è in p0 → c’è page-fault con m, ma non con m+1
+  caso 3: la pagina non sta in nessuno dei precedenti → page-fault sia in m che in m+1
+  Non è quindi possibile che ci sia page-fault in m+1 e non in m
+
+-quali sono le differenze fra un device driver di una unità con funzionalità di DMA e quello di una unità senza DMA?
+ (Il controller del) device driver con DMA prende e pone i dati per l'op di I/O direttamente dalla RAM (non coinvolge CPU) mandando un interrupt al termine delle op. 
+ Pro: la CPU non accede al bus ad ogni ciclo di clock. Cons: contesa nell'accesso al bus
+ Nei Dev.Driv. senza DMA è la CPU che carica/scarica tramite bus i parametri nei registri del driver 
+
+-come vengono memorizzati i link simbolici in un filesystem?
+ Come tipo speciale di directory entry (con proprio inode number) che contine un riferimento (CAMMINO ASSOLUTO) ad un'altro file.
+ Cioè permette di visualizzare il cammino assoluto del file indicato, se quest'ultimo viene spostato si crea un dangling reference.
+
+-quando un sistema è in trashing il carico della CPU (o delle CPU) è alto o basso, perché?
+ Carico CPU BASSO poichè il sistema impiega molto tempo a gestire page fault piuttosto che per l'esecuzione dei processi (ready queue vuota). Page fault gestiti da SO (pager) + device di I/O e non dalla CPU
+
+-esistono partizioni del disco che vengono usate senza creare su di esse strutture di file system? perché?
+ Si, ad esempio la partizione che contiene il MASTER BOOT RECORD che mantine info sul partizionamento ed è usato per fare boot di sistema oppur la SWAP PARTITION 
+
+-un sistema operativo a microkernel è più flessibile, più affidabile ma meno efficiente di un kernel monolitico.Spiegare brevemente il motivo delle tre affermazioni.
+ Più flessibili per il maggiore livello di astrazione e modularità (aggiungere servizio->si aggiunge proc a livello utente. Modifiacare servizio->si riscrive solo il codice del servizio stesso). 
+ Più affidabili poichè il fallimento di un modulo non porta al fallimento dell'intero sistema e molte funzionalità sono gestite a livello utente senza possibili ripercussioni negative sul kernel.
+ Meno efficienti a causa dell'overhead causato dalla comunicazione tra processi mediata dal kernel. 
+
+-come vengono memorizzati i link fisici in un filesystem?
+ File che presentano riferimento all'inode del file a cui si riferiscono. Hanno accesso a tutti i dati di tale file e ne condividono l'inode number.
+ Nell'inode c'è inoltre un contatore di riferimenti per tenere traccia di quanti hard link puntano al file
+
+-la metodologia RAID protegge dall'esecuzione di programmi errati che rovinano i dati? Perché?
+ No, è un meccanismo di gestione di array di dischi. In base al tipo offre possibilità di recovery di dischi rotti ma non controlli sull'esecuzione di programmi errati che spetta al fs
+
+-qual è il numero di link indicati nell'i-node di una directory di un File System UNIX (bffs, ext2, ...)? Perché?
+ E' il numero di hard link, cioè riferimenti fisici al file. Questo affinchè il file persista nel sistema fintanto che ci saranno link reali a esso, cioè finchè il suo count di riferimenti non sarà zero
+
+-i sorgenti del so Linux possono essere scaricati e il kernel può essere ricompilato. In quali casi pensate sia necessario compilare un kernel specifico?
+ Poichè Linux fa uso di KERNEL MONOLITICO, sarà necessario ricompilare il kernel per ogni modifica/aggiunta di uno dei moduli principali.
+ Non tutte le modifiche ai moduli necessitano una ricompilazione, alcuni possono essere ricaricati a runtime
+
+-ci sono spinlock (strutture di sincronizzazione simili al Test@Set) nel kernel Linux? Perché? 
+ Si, per esempio per proteggere una periferica hardware da accessi simultanei, assicurando che le modifiche avvengano una alla volta.
+
+-perché per realizzare un servizio di memoria virtuale l'algoritmo di rimpiazzamento LRU è difficile da implementare?
+ Mantenere info per LRU è troppo costoso e richiede molti accessi in memoria sovraccaricando richieste alla MMU
+ (2 accessi in memoria per ogni pagina richiesta e operazioni per modificare count/reference bit)
+
+-in quali casi anche utilizzando file system con supporto di journaling si possono perdere informazioni?
+ Nel caso di errore di sistema (es mancanza corrente) le transazioni di log devano essere ripetute e può avvenire perdita di dati.
+ Viene ripristinata la coerenza strutturale ma non di contenuti. Oppure se sono presenti errori fisici nell'hard disk (es testina graffiata disco)
+
+-perché il servizio di message passing asincrono e quello sincrono non hanno lo stesso potere espressivo?
+ MP asincrono ha maggiore potere espressivo di quello sincrono.
+ Implementare MP asincrono dato il sincrono richiede l'aggiunta di un processo server mentre il viceversa può essere fatto senza aggiunta di ulteriori processi/librerie. 
+
+-perché DMA viene utilizzato per le unità di memoria secondaria (es dischi) e non per terminali?
+ Utilizzati per dischi poichè richiedono accesso diretto a specifiche posizioni
+ I terminali fanno uso di MEMORY MAPPED (che mappa i dati del dispositivo su insieme di indirizzi e ci accede attraverso bus) 
+ in modo da poter scrivere grandi porzioni di bit nel buffer del controller (dispositivo indirizzabile tramite bus)
+
+-cosa succede in un sistema operativo quando un processo utente tenta di eseguire una operazione illegale (es. divisione per zero)? Lo standard POSIX (UNIX) cosa prevede in questo caso?
+ Viene generata una TRAP che con il PC va a saltare allo spazio di memoria che la gestisce. Ci può essere poi una cominicazione di più alto livello tra kernel e processo.
+ Quindi il proc potrebbe essere in grado di gestire l'eccezione con un try-catch (fatto a livello utente e non kernel)
+
+-dato un sistema monoprocessore che elabora dati in modo batch, cosa cambia se si usa uno scheduler round-robin al posto di uno FIFO?
+ Con il sistema FIFO c'è il rischio che un unico processo occupi la CPU per molto tempo. Questo poichè il proc deve terminare per liberare la CPU poiche
+ tali pocessi non eseguono op di I/O. E' quindi preferibile un approccio Round Robin
+
+-esistono processori che non hanno istruzioni privilegiate (modo kernel/modo user). Quali conseguenze ci sono per i sistemi operativi?
+ Si ma sono pericolosi in quanto un processo utente potrebbe scrivere in qualsiasi area di memoria senza controlli e creare danni
+
+-in quali casi è bene non usare la memoria virtuale?
+ In sistemi che non supportano la multiprogrammazione, in tale caso la memoria virtuale crea un calo di prestazioni senza benefici utili.
+ Questo poichè ci sarebbe un solo programma alla volta, si conoscono già i processi da eseguire e quindi un processo può allocare tutte le risorse prima della 
+ computazione (ALLOCAZIONE TOTALE)
+
+-perché il file system FAT viene ancora utilizzato?
+ Per la sua semplicità, efficacia e portabilità tra sistemi diversi
+
+-a cosa serve e quando viene eseguito l'algoritmo di calcolo del working set?
+ serve a limitare il problema del trashing assicuradosi che un processo abbia in memoria le pagine di cui ha bisogno. Viene eseguito ad ogni page fault
+
+- come si calcola la lunghezza massima di un file che si può memorizzare su un file system di tipo fat?
+ Calcolando il max numero di cluster del file per la loro dimensione
+
+- quali sono le differenze fra un virus e un worm? come ci si difende da questi tipi di malware?
+ Un virus ha bisogno dell'intervento umano per essere attivato o diffuso, attaccandosi a programmi/file e replicandosi in modo anomalo.
+ Possano usare ogni supporto. Un worm è autonomo e opera solo sulle reti. 
+ Per difentersi dai virus basta un SO che impedisca a programmi di automodificarsi o modificare altri programmi.
+ Per difendersi dai worm basta aggiornare costantemente i programmi.
+ In entrambi i casi la soluzione è usare SOFTWARE LIBERO.
+
+-come si calcola la lunghezza massima di un file che si può memorizzare su un file system di tipo ext2? 
+ Sommando la memoria indirizzabile dai puntatori diretti e quelli indiretti di primo, secondo e terzo livello 
+
+-a cosa serve il meccanismo del sale (salt) nella memorizzazione delle password criptate? E se il salt funziona, perché le password
+ criptate in Linux vengono memorizzate nel file "/etc/shadow" e non in "/etc/passwd"?
+ Rende più difficile gli attacchi di tipo DIZIONARIO, poichè per ogni parola si deve trovare anche il valore del 'sale'.
+ Non si salvano in "/etc/passwd" poichè quel file contiene anche molte info utili leggibili da chiunque.
+ "/etc/shadow" invece memorizza le passw in un file separato leggibile solo a root.
+------------------------------------------------------------------------------------------------------------------------------------------
+RISORSE
+
+Gestione deadlock:
+-detection e recovery
+-prevention/avoidance
+-Algoritmo dello struzzo (problema ignorato)
+
+GRAFO DI HOLT -> detection -> grafo aggiornato durante evoluzione dei processi (passi di riduzione)
+KNOT -> detection -> partendo da un qaulunque nodo del sottoinsieme M del grafo (il KNOT) si possono raggiungere tutti i nodi di M e nessuno fuori di esso 
+		  -> un grafo con un KNOT è in deadlock
+
+CHECKPOINT/ROLLBACK -> recovery -> stato processo salvato periodicamente sul disco (checkpoint) e in caso di deadlock si ripristinano tot processi ad uno stato precedente (rollback)
+
+Prevention:
+-attaccare condiz. di Mutua Esclusione favorendo la CONDIVISIONE DI RISORSE (problema dello spooling)
+-attaccare condiz. di Richiesta Bloccante facendo ALLOCAZIONE TOTALE (tutte le risorse ad assegnamento statico, cioè un proc prima della partenza richiede le risorse di cui ha bisogno, se non sono disponibili non parte)
+-attaccare condiz. di Assenza di Prerilascio (solo manualmente)
+-attaccare condiz. di Attesa Circolare facendo ALLOCAZIONE GERARCHICA (risorse a priorità diversa, si allocano solo quelle crescenti, per allocare una a priorità inferiore bisogna rilasciare le altre a priorità superiore di quella richiesta. Cioè si evitano CICLI) 
+
+Avoidance:
+ALGORITMO DEL BANCHIERE 
+
+-> alg per evitare la deadlock durante la gestione delle risorse da affidare ai processi
+
+-Un banchiere gestisce un gruppo di clienti a cui concede del credito. Ha una certa dotazione di cassa limitata
+-Non tutti chiederanno lo stesso credito simultaneamente
+-Non necessariamente la somma dei prestiti ai clienti deve essere <= della dotazione di cassa del banchiere
+-Ogni cliente non può ricevere più della dotazione di cassa del banchiere. La richiesta di ogni cliente deve però essere esaudibile per esteso, altrimenti deve aspettare
+-Ogni richiesta verrà sempre soddisfatta, probabilmente non subito
+-Il prestito deve essere restituito per intero (anche in più trance) ma in un tempo finito
+-Il banchiere in un tempo finito deve soddisfare tutte le richieste
+
+Due tipi di transazioni da parte dei clienti
+-richiesta prestito
+-restituzione
+
+Stato UNSAFE -> condizione necessaria ma non sufficiente per avere deadlock (tale stato PUO' portare a una deadlock)
+	     -> in un certo istante di tempo la richiesta di nessun cliente può essere soddisfatta
+
+Stato SAFE:
+
+	s -> sequenza di clienti 
+	avail[j] -> quanto denaro ho per soddisfare la richiesta del j-esimo in seq:
+	
+		avail[1]=COH  -> per il primo della seq la disponibilità che ho è solo il denaro in cassa
+		avail[j+1]=avail[j]+Pj -> per il j-esimo la disponibilità è il denaro che aveva in prestito quello precedente più quello in cassa
+		
+	s[] -> rappresenta una seq possibile di completamento delle esecuzioni che mi lascia una via di uscita possibile (richieste tutte soddisfacibili)
+	il denaro in cassa deve soddisfare il primo della sequenza
+	il denaro in cassa + quello che aveva in prestito il primo della seq deve essere in grado di soddisfare il secondo della seq
+	il denaro in cassa + quello che in prestito sia il primo che il secondo della seq deve soddisfare il terzo della seq
+	...
+
+	il denaro in cassa deve essere in grado di soddisfare la n[i] (credito residuo del cliente i) di almeno 1 cliente per avere STATO SAFE e non rischiare la deadlock
+
+	-> tenendo sempre i sistemi in uno stato SAFE non ci sarà deadlock
+
+
+Es STATO UNSAFE:
+20 fiorini di capitale
+2 clienti ognuno avente un credito 20 fiorini
+il banchiere 'ingenuo' presta 10 fiorini a testa ai clienti
+-> se entrambi i clienti richiedano i 10 fiorini di credito rimanenti allora si ha DEADLOCK poichè nessuno dei 2 riesce a terminare
+
+Es STATO SAFE:
+con il denaro in cassa posso soddisfare la richiesta di solo 1 cliente
+tale cliente o farà quella richiesta oppure terminerà
+prima o poi terminerà
+a quel punto con il denaro in cassa più quello prestato a questo primo tizio provo a soddisfare il secondo (e così via)
+
+
+
+Scelta richiesta soddisfacimento delle richieste: si guarda con il denaro in cassa chi può essere soddisfatto. Iterativamente il primo trovato è aggiunto alla seq.
+Mantenersi sempre in uno stato un cui una condizione necessaria per avere deadlock viene negata -> deadlock non ci sarà mai
+
+
+ALGORITMO DEL BANCHIERE MULTIVALUTA
+
+Per sistemi con classi di risorse diverse -> banchiere che opera su valute diverse
+-tutti i valori sono vettoriali -> relazione d'ordine parzile tra gli elementi
+-regola di ordinamento dei processi -> passo passo aggiungendo un proc a caso tra quelli completamente soddisfacibili
+
+1-partendo dal denaro in cassa (vettore) si va a cercare un processo che abbia Ni (credito residuo cliente i) <= del denaro in cassa (<= tra vettori: componente per componente)
+2-Se non c'è (relazione d'ordine non soddisfatta, ovvero non <= per tutte le componenti) allora STATO SISTEMA UNSAFE
+3-Se c'è allora sarà il primo della seq. -> si esegue poi somma vettoriale tra denaro in cassa più quello che aveva in prestito questo primo cliente -> si ottiene avail[2] vettore -> e così via per tutti i clienti
+
+
+Implementazione pratica:
+'Tabella del banchiere' è tenuta aggiornata come il Grafo di Holt
+Siamo in uno stato SAFE e uno fa una richiesta -> si fa la copia della TABELLA DEL BANCHIERE, si accoda la richiesta e si va a vedere se lo stato è ancora SAFE
+Se si si aggiorna la tabella con la nuova richiesta, altrimenti si fa attendere il processo
+Quando un proc rilascia risorse la tabella è aggiornata e si va a prendere il primo proc della lista di quelli in attesa
+Se la richiesta si può concedere si esegue e si aggiorna la tabella, altrimenti
+
+Alg del banchiere entra in funzione ogni volta che un processo fa una richiesta o un rilascio
+
+PUNTO CRITICO Alg del banchiere:
+per funzionare occorre che il processo dichiari a priori qual è la quantità massima di risorse di cui ha bisogno
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+MEMORIA (PRINCIPALE)
+
+MMU ->hardware, gestione (e protezione) memoria da punto di vista fisico -> entra in funzione ad ogni accesso in memoria (load-store)
+Memory manager ->componente del SO che gestisce la MMU -> configura la funzione di trasformazione degli indirizzi da logici a fisici. Funzione poi applicata dal MMU che la valuta ad ogni accesso in memoria
+
+BINDING -> associazione tra indirizzi logici e fisici. Avviene in compilazione (addrs assoluti)/caricamento (addrs relativi)/esecuzione (MMU individua addr effettivo)
+
+CPU -> MMU ->INDIRIZZI FISICI     
+cioè MMU fa in modo che ci sia uno spazio di indirizzi logici visto dalla CPU
+
+Es MMU -> registro di rilocazione - registro di rilocazione e limite
+
+LOADING DINAMICO
+-> routine di libreria caricate solo quando utili
+-> funzionalità a carico del programmatore (se presente o meno in una applicazione)
+-> libreria che dialoga con il SO per fare caricamento dinamico solo delle parti di programma che servono
+
+LINKING DINAMICO
+Linker collega le verie parti compilate di un programma per creare un eseguibile
+-> al momento del linking (statico) viene generato eseguibile solo con parti specifiche del programma
+-> poi al posto di funzioni che utilizzano certe LIBRERIE DINAMICHE ci sono riferimenti a quest'ultime
+-> il codice per tali funzioni è quindi caricato in fase di esecuzione quando vengono chiamate
+
+
+ALLOCAZIONE -> reperire spazio di memoria fisica per poter garantire uno specifico utilizzo
+            -> assegnamento di memoria a un processo (statico o dinamico)
+
+FRAMMENTAZIONE INTERNA (ai processi allocati):
+Se allocazine di memoria è a PARTIZIONE FISSA e non si riesce ad utillizzare completamente le partizioni, all'interno di esse ci saranno aree di memoria inutilizzate.
+Cioè un proc occupa un'area inferiore di quella della partizione -> spreco
+
+FRAMMENTAZIONE ESTERNA (ai processi allocati):
+Se allocazine di memoria è a PARTIZIONE DINAMICA allora un processo che termina all'interno della memoria lascia uno spazio inutilizzato pari alla memoria che aveva allocato.
+Un nuovo processo che richiede memoria non è detto che sia allocabile in quello spazio appena rilasciato (non contiguamente per tutta la memoria richiesta se 'più grande').
+Ci sono spazi inutilizzati in memoria tra i processi allocati 
+
+COMPATTAZIONE -> risolve FRAMM. ESTERNA -> consiste nella rilocazione di processi durante la loro esecuzione (fermandosi) (molto onerosa)
+
+METODI ALLOCAZIONE DINAMICA: 
+-mappa di bit
+-lista di puntatori
+-SELEZIONE BLOCCO LIBERO: op. di selezione di un blocco libero indipendete dalla struttura dati
+	FIRST FIT -> si scorre la lista di blocchi lliberi fino a trovare il primo grande abbastanza da contenere il nuovo processo da allocare
+	NEXT FIT -> come first fit ma riparte sempre dal punto in cui è stato inserito l'ultimo processo nell'aria libera
+	BEST FIT -> ricercare in tutta la memoria il blocco libero più piccolo per contenere il nuovo processo (costoso e genera più frammentazione)
+	WORST FIT -> seleziona il più grande fra i blocchi liberi in memoria
+
+
+PAGINAZIONE
+
+Area di memoria utilizzabile per i processi (cioè tutta tranne quella utilizzata dal kernel) è suddivisa in FRAME (aree di uguale dimensione)
+L'area di indirizzamento logico del programma da allocare è divisa in PAGINE (elementi della stessa dim dei frame)
+(frame -> suddivisioni memoria fisica, pagine -> suddivisioni memoria logica)
+
+La paginazione permette di prendere le pagine (n) del programma da eseguire e inserirle in n frame liberi ovunque essi siano nella memoria.
+-riduce frammentazione interna ed elimina quella esterna
+ 
+es: frame/pagina di 4k -> offset all'interno della pagina si rappresenta con 12 bit (2^12 = 4096) -> 32 bit di memoria: 20 bit=N DI PAGINA, 12bit=OFFSET(all'interno della pag)
+n di pag (20 bit) -> indice di un vettore che indica dov'è il frame corrispondente a quel n di pag (vettore di 20 elementi)
+TABELLA DELLE PAGINE ha un elemento per ogni 4k usati ed è gestita dalla MMU
+
+Problema: dove mettere la TABELLA DELLE PAGINE nel sistema? Idee di soluzione: Nei registri (troppo costoso) o tutta in memoria (problema raddoppio accessi in mem, prima si accede alla tabella delle pagine e poi in memoria)
+SOLUZIONE: TLB (translation lookaside buffer) -> è una cache della tabella delle pagine fatta nella MMU (principio di località)
+
+TLB -> regola accesso alla TABELLA DELLE PAGINE
+TLB -> 'array' di registri associativi, ognuno diviso in CHIAVE (numero di pagina) e VALORE (indirizzo del frame)
+Dato num di pagina, se presente in uno dei registri associativi (TLB hit) allora leggendo il relativo valore si ottiene il corrispondente indirizzo di frame
+Numero di pagina usato come valore di ricerca nel TLB
+Tempo ricerca CHIAVE nel registro: O(1) poichè fatta in hardware
+Se la CHIAVE cercata non è presente nel TLB: si ha TLB miss (una TRAP) -> il SO deve caricare l'elemento cercato nel TLB, l'esecuzione può poi continuare
+Potrebbero esserci processi con lo stesso num di pagina poichè questi riguardano indirizzi logici
+Le 'entry' al TLB hanno anche l'id del processo, quindi lo stesso num di pagina per un'altro processo viene mappato ad un'altro indirizzo
+
+PAGINAZIONE -> meccanismo che non si occupa della natura dell'informazione memorizzata in memoria. Serve solo a risolvere problemi di frammentazione
+
+
+SEGMENTAZIONE
+
+Serve a dividere funzionalmente le aree di memoria (es area testo, area dati, ..)
+Spazio di indirizzamento logico (teorico) dato da un insieme di SEGMENTI -> visto dal processo come diviso in aree funzionali.
+SEGMENTO -> concettualmente ha un nome (segmento libreia condivisa, segmento dati,..)
+Programmare i segmenti spetta in gran parte al programmatore
+Separazione fatta per la natura dei dati che vengono memorizzati.
+
+-una PAGINA può contenere dati disomogenei
+-un SEGMANTO presenta dati omogenei
+Separazione in segmenti (fatta dal linker) viene fatta a seconda del contenuto del programma. Quindi SEGMENTO ha dimensione variabile.
+Segmentazione utile per la condivisione di dati (poichè la consente)
+
+La SEGMENTAZIONE non risolve i problemi di FRAMMENTAZIONE ma serve per altri scopi (es condivisione di codice)
+
+
+SEGMENTAZIONE + PAGINAZIONE
+Ogni segmento è diviso in pagine. Si beneficia da entrambe le tecniche
+Si hanno TABELLE DELLE PAGINE MULTILIVELLO (i vari gruppi di bit danno accesso a tabelle di pagine diverse)
+
+
+
+MEMORIA VIRTUALE
+
+Memoria -> risorsa critica e costosa -> va gestita in modo efficiente, ottimizzandone le funzionalità/prestazioni
+MV è la possibilità di vedere la MEMORIA FISICA, RAM + parte di MEMORIA SECONDARIA, come una memoria PRIMARIA di ampiezza più grande
+La MV è possibile perchè ogni processo non usa sempre contemporaneamente tutta la memoria che ha allocato
+
+Lo SPAZIO DI INDIRIZZAMENTO VIRTUALE deve avere una memoria associata che può essere principale o secondaria
+Se l'hardware richiede indirizzi che sono in memoria secondaria occore spostare quel contenuto in memoria primaria, e per fare ciò si usa la PAGINAZIONE.
+
+Nella TABELLA DELLE PAGINE è utilizzato un bit 'v' (valid) che indica se tale pagina è presente nella mem principale o no.
+
+TLB MISS -> se indirizzo cercato non presente nel TLB allora a seguito di tale TRAP il controllo è passato al MEMORY MANAGER (SO)     
+	    che si occupa di riempire l'elemnto del TLB con l'indirizzo della pagina
+Il TLB può però anche scoprire che quell'indirizzo logico a cui il programma vuole accedere non è in quel momento in MEMORIA PRINCIPALE
+-> tale TLB MISS diventa un'altro tipo di trap: PAGE FAULT (cioè 'PAGE MISS')
+
+PAGE FAULT: si ferma il processo in exec, si carica la pagina in memoria cercando un frame libero e poi seccessivamente si carica anche nella TABELLA DELLE PAGINE. Il proc può ripartire.
+-un TLB MISS richiede pochi cicli di clock
+-un PAGE MISS è come se il processo facesse un I/O
+
+Quando non esistono FRAME LIBERI in memoria per caricare una nuova pagina?
+Una pagina 'vittima' deve essere rimossa per poter caricare la nuova. La pagina rimossa viene prima salvata sul disco se stata modificata, altrimenti eliminata direttamente.
+
+ALGORITMO DI SOSTITUZIONE/RIMPIAZZAMENTO -> decide quale tra tutte le pagine presenti in frame della memoria è 'meno utile'e può essere rimossa
+                                         -> ha l'obiettivo di minimizzare il num di page fault
+					 -> ANOMALIA DI BELADY: non è assicurato che l'alg di rimpiazzamento faccia meno page fault all'aumentare della quantità di memoria
+
+ALGORITMO 'DEMAND PAGING' (paginazione richiesta):
+-individua pagina in memoria secodnaria
+-individua un frame libero
+-se non presente:
+	-richiama ALG DI RIMPIAZZAMENTO
+	-aggiorna TABELLA DELLE PAGINE (etichetta pag 'vittima' come invalida)
+	-se pagina 'vittima' è stata modificata è riscritta sul disco
+	-aggiorna la TEBELLA DEI FRAME (frame libero)
+-aggiorna la TEBELLA DEI FRAME (frame occupato)
+-legge pagina che ha provocato page fault dal disco
+-aggiorna la TABELLA DELLE PAGINE (caricato il TLB)
+-riattiva il processo
+	 
+
+
+ALGORITMI DI RIMPIAZZAMENTO
+
+Stringa di rifermenti in memoria -> dato un proc in esecuzione, tale stringa mantiene la sequenza di tutte le locazioni di memoria a cui il proc accede
+				    (tiene traccia delle pagine ha cui il proc ha avuto accesso)
+				    Corrispone quindi alla stringa di tutti in NUMERI DI PAGINA (indirizza senza bit di offset)
+				    Serve alla valutazione dell'alg di rimpiazzamento che si utilizza
+
+
+ALGORITMO FIFO (DI RIMPIAZZAMENTO) -> si libera il frame da più tempo in memoria, cioè il primo caricato (non necessita di supporto hardware ma rischia di scartare pagine ancora in uso)
+				   -> presenta ANOMALIA DI BELADY
+
+ALGORITMO MIN-OTTIMALE -> si libera la pagina (vittima) che verrà acceduta in tempo più remoto nel futuro
+(DI RIMPIAZZAMENTO)    -> guardando la stringa dei riferimenti si guarda quale tra le pag in memoria verrà acceduta in un tempo più lontano nel futuro
+		       -> è quello che fa in assoluto meno page fault
+		       -> PROBLEMA: alg teorico poichè non sappiamo a priori a quale locazione di memoria il processo accederà
+		       -> permentte analisi a posteriori degli altri alg di rimpiazzamento
+
+ALGORITMO LRU (LEAST RECENTLY USED) -> si libera la pagina acceduta nel passato più remoto
+(DI RIMPIAZZAMENTO)               
+	Implementazione (1),(2): 
+	 - necessita supporto HARDWARE: (1)MMU registra nella TABELLA DELLE PAGINE un TIME-STAMP quando accede a una pagina. Oppure (2) usando strutture dati tipo stack
+	 - TIME-STAMP: contatore incrementato ad ogni accesso in memoria (problema overflow e tempo per scandire tabella)
+
+ALGORITMO A STACK:
+Fissate queste 4 grandezze si può individuare univocamente lo stato della memoria in un determinato istante di tempo:
+A (algoritmo), S (stringa riferimenti), m (num frame), t (tempo) 
+
+Alg si dice a STACK se l'insieme delle pagine in memoria con m frame è sempre un sottoinsieme delle pagine in memoria con m+1 frame  
+
+Importanza algoritmi a stack: TEOREMA: un alg a stack non genera casi di Anomalia di Belady
+-in nessun momento temporale può succedere che ci sia un page fault con un frame in più e manchi con il frame in meno
+-aumentando il num di frame si avranno meno page fault
+-> LRU è a stack. FIFO no.
+
+In entrambe le implementazioni (contatore/stack) l'LRU è troppo costoso
+Si implementa con REFERENCE BIT: tutte le volte che si accede a una pagina, il reference bit che gli è associato viene aggiornato a 1
+Inizialmente i RB di tutte le pagine sono a 0
+Periodicamente si osserva quali pagine sono state accedute e quali no osservando i RB
+
+ALGORITMO ADDITIONAL-REFERENCE-BIT LRU -> si matiene una storia per ogni pagina aumentandone le info ad intervalli regolari
+
+ALGORITMO SECOND-CHANCE LRU -> dimensione della storia = 1 (lista circolare pensata ad orologio).
+			    -> esamina le pagine in maniera ciclica
+			    -> se la pagina è stata acceduta si mette a 0 il bit e si passa a quella successiva
+			    -> la prima pagina incontrata che ha bit di riferimento 0 si usa come vittima
+			    -> la volta prossima la scansione è riniziata dall'elemento successivo
+		            Quest'ultimo alg è semplice da implementare ed efficiente
+
+ALGORITMO LFU (least frequently used) -> si mantiene contatore di num di accessi a una pagina
+				      -> la pagina con valore minimo è spelta come vittima
+				      FREQUENZA: num accessi di accessi diviso tempo permanenza in memoria
+				      PROBLEMI: una pag usata frequentemente all'inizio e poi non più usata non viene rimossa per lunghi periodi
+
+
+ALLOCAZIONE
+
+A. LOCALE -> un processo ha un insieme proprio di frame (non flessibile, se esauriti quelli a disposizione il processo deve eliminare una pagina da un frame per allocarne una nuova)
+A. GLOBALE -> frame del sistema pensati come un unico poll, i processi cercheranno frame disponibili/da liberare in tutto il sistema (competizione tra processi, può portare al TRASHING)
+
+TRASHING: il sistema degenera le proprie prestazioni per sovraccaricamento di richieste alla MEMORIA VIRTUALE da parte dei processi. I processi si 'rubano' le pagine a vicenda
+        -> il sistema spende più tempo per la paginazione che per l'esecuzione
+
+Come si fa a valutare se un sistema è in TRASHING?
+Si usa:
+
+WORKING SET -> meccanismo per valutare se un sistema è in TRASHING
+
+Dato il tempo t che passa per ottenere una pagina dal disco da un processo.
+Vediamo per ogni processo di quante pagine distinte ha bisogno in quel tempo:
+Sommando le quantità di frame richiesti da i processi presi in considerazione si ottiene la quantità necessaria di frame che serviranno ai processi 
+per non rubarsi le pagine a vicenda.
+Per fare questa approssimazione si utilizza la storia recente dei processi
+-> si guarda la STRINGA DEI RIFERIMENTI, data una finestra temporale con tot accessi, si valuta quante pagine distinte sono accedute
+   facendola scorrere nelle varie finestre di tempo
+
+-se ampiezza finestra è ben calcolata, il WORKING SET è una buona approssimazione delle pagine 'utili'
+-somma ampiezza di tutti i WORKING SET dei processi attivi deve essere minore del numero di frame disponibili, altrimenti sitema in TRESHING
+
+-> per uscire dal TRASHING si fermano alcuni processi, ciò permette loro di liberare il WORKING SET che può essere usato per gli altri
+
+-------------------------------------------------------------------------------------------------------------------------------------------------
+
+MEMORIA SECONDARIA
+
+-> memoria direttamente accessibile dal sistema e non volatile
+-> Dispositivo a BLOCCHI: a tale memoria si accede a BLOCCHI, si legge/scrive BLOCCHI. Modalità di accesso: sequenziale o random.
+-> Alcuni dispositivi sono a CARATTERI: dati letti/scritti un CARATTERE alla volta. 
+
+TECNICHE GESTIONE DISPOSITIVI I/O:
+   BUFFERIZZAZIONE: lettura/scrittura di una linea alla volta
+   CACHING: capacità di tenere su una memoria più veloce la copia dei dati di una memoria più lenta
+   SPOOLING: si crea un device ideale con cui interagire che coinvolgerà il device reale solo alla conclusione dell'operazione
+
+Memoria Secondaria fatta con:
+-dischi rotazionali
+-dischi allo stato solido (SSD)
+
+
+SSD
+-Si scrive a BLOCCHI, si legge a BANCHI (molti blocchi insieme)
+-velocità lettura > velocità scrittura
+-accesso uniforme su tutta l'area di memoria (stesso costo accendo ovunque)
+
+DISCHI (ROTAZIONALI)
+3 paramentri: r -velocità di rotazione, Ts -tempo di seek (t medio necessario per spostare la testina sulla traccia desiderata), Vt -velocità di trasferimento dati
+
+DISK SCHEDULING:
+i processi vogliono accedere in lettura/scrittura ai vari blocchi del disco. In ogni momento ci possano essere varie richieste pendenti -> vanno schedulate
+
+FCFS (first come first served) -> SCHEDULER per gestire le richieste sul disco
+SSTF (shortest seek time first) -> seleziona la richiesta che prevede minor spostamento della testina dalla posizione corrente
+				-> può creare STARVATION
+
+LOOK -> ALGORITMO DELL'ASCENSORE
+-scelta una direzione e l'alg soddisfa la richiesta più prossima in quella direzione
+-una volta raggiunta l'ultima richiesta nella direzione scelta, la direzione è invertita eseguendo richieste nella dir opposta
+-implementato con 2 CODE (una per direzione)
+-> è EFFICIENTE ed esente da STARVATION
+-> PROBLEMA: NON OMOGENEO -> è più facile accedere ai cilindri centrali che quelli agli estremi
+
+C-LOOK 
+-stesso principio funzionamento del precedente ma la scansione avviene in una direzione
+-raggiunta l'ultima richiesta della direzione 'salta' direttamente alla prima
+- MENO EFFICIENTE ma OMOGENEO
+
+
+RAID
+
+E' un meccanismo per gestire ARRAY DI DISCHI
+
+ARRAY DI DISCHI indipendenti -> garantiscono parallelismo per gestire più richieste di I/O (in parallelo)
+-Non è possibile avere la stesse prestazioni nei dischi di quelle che si hanno nei processori (limitazioni dovute alla loro meccanica)
+Rischio: processore potenti bloccati da dischi molto più lenti. Soluzione: Array di dischi che riescono a distribuire le richieste di I/O
+RAID nasce per avere memorie secondarie veloci
+
+Distribuire i dati tra i vari dischi dell'array. Si usa ridondanza di dati per tollerare guasto di 1 o più dischi.
+
+STRIP -> blocco logico in cui è diviso il disco
+STRIPING -> sistema RAID visto come disco logico, STRIP consecutivi sono distribuiti su dischi diversi (per ottimizzare prestazioni in lettura/scrittura sul sitema, per singola richiesta la velocità è quella del singolo disco)
+         
+
+RAID 0 
+Non c'è RIDONDANZA -> è STRIPING: ciclicamente distribuiamo i dati su tutti i dischi
+-aumenta prestazioni ma peggiora sicurezza
+(usato come "cache locale" per tenere la copia locale delle ditribuzioni dei sistemi durante gli aggiornamenti)
+
+RAID 1
+Detto MIRRORING: tutti i dati sono duplicati su più insiemi indipendenti di dischi (ridondanza)
+-ogni STRIP è scritto su 2 dischi diversi -> raddoppia costo per unità di memorizzazione
+- scrittura: doppio di velocità, lettura: quadrupla velocità 
+-se un disco si guasta i dati sono accessibili dall'altro (RECOVERING)
+
+RAID 4
+Si utilizzana n-1 dischi per i dati, l'ultimo disco tiene la PARITA'
+STRIP DI PARITA': strip(0) xor sprip(2) xor ... strip(n-1) = P(0 - n-1)  -> per ogni bit di strip(0) - strip(n-1) esegue lo xor che sarà la parità da mettere nel disco n
+-Se si rompe il disco n (che tiene la parità) -> i dati rimandono, basta sostituirlo e ricalcolare la parità
+-Se si rompe uno degli altri dischi
+-lettura: velocità quadruplicata. In scrittura il DISCO 5 diventa COLLO DI BOTTIGLIA: cambiando un valore sugli altri dischi bisogna ricalcolare la parità
+
+RAID 5 
+come RAID 4 ma i blocchi di parità sono sparsi tra i vari dischi
+-PARITA' assegnata ciclicamente: strip(0-3) parità nel disco 5, strip(4-6) parità nel disco 4, ecc.
+-si ha aumento di prestazioni anche in scrittura: si useranno sempre 2 dischi, quello da modificare e quello di parità
+
+Nel RAID 4 E RAID 5 si può rompere un qualsiasi disco ma mai 2 (grazie alla parità)
+
+RAID 6
+come RAID 5 ma con 2 bit di parità e quindi tollera 2 dischi di guasto ma non il terzo.
+Gazie a un sistema dei due bit di parità è possibile recuperare fino a 2 dischi rotti
+
+--------------------------------------------------------------------------------------------------------------
+
+FILE SYSTEM
+
+-astrae la complessità della memoria proponendone una interfaccia che ne ottimizzi l'utilizzo da parte degli utenti (utenti=processi)
+Due elementi del FS:
+-FILE: entità atomica gestita dal FS
+-DIRECTORY: servono per organizzare e dare info sei vari file
+
+Attributi file: nome, tipo, locazione e dimensione, data e ora, info su proprietà (utenti/gruppi)..
+
+Tecniche per identificare un tipo di file da parte di un SO:
+-estensioni
+-attributo 'tipo' associato al file (nome)
+-magic number (info nel contenuto)
+
+Possibile scelta per gestione struttura file da parte di un SO:
+-file considerati come stringhe di byte (es UNIX e MS-DOS)
+
+Metodi accesso:
+-sequenziale (read,write)
+-accesso diretto(read pos, write pos)
+-indicizzato(stile database)
+
+API relativa a op su file basata su operazioni di OPEN/CLOSE:
+-i file devono essere 'aperti' prima di effettuare operazioni e chiusi successivamente (ciò garantisce concorrenza)
+-DESCRITTORE DI FILE -> utile per controllare le op di accesso ai suoi dati ed essere identificabile dopo la sua apertura
+
+STRUTTURA DIRECTORY (a seconda del FS)
+-a livello singolo-a due livelli-ad albero-a grafo aciclico-a grafo
+
+SEMANTICA DELLA COERENZA
+Nei sistemi multitasking come vengono percepite le modifiche ai file da parte degli altri processi?
+-nei sist multitasking i processi accedono ai file indipendentemente
+-in UNIX: modifiche ad un file aperto sono rese visibili agli altri proc immediatamente
+-in AFS (Andrew file system): SEMANTICA DELLE SESSIONI file visti come locale dai processi, la modifica verrà vista dagli altri nel momento della close
+
+
+IMPLEMENTAZIONE DEL FILE SYSTEM
+
+
+STRUTTURA DISCO (mem secondaria)
+
+Un disco può essere diviso in una o più PARTIZIONI (porzioni indipendenti di disco che possono ospitare file system distinti)
+PARTIZIONARE -> dividere il disco in modo che una unità appaia logicamente come n unità (ogni partizione vista come fosse un disco indipendente)
+Info su come è partizionato il disco: si trova nel primo settore dei dischi, il MBR (MASTER BOOT RECORD)
+MBR -> contiene PARTITION TABLE ed è utilizzato per fare BOOT del sistema (eseguire codice di prima partenza)
+
+>STRUTTURA PARTIZIONE
+-ogni partizione inizia con un BOOT block
+-il MBR carica il BOOT block della partizione attiva e lo esegue
+-il BOOT block carica il SO e lo esegue
+-il resto della partizione è dedicato al FILE SYSTEM e presenta:
+   -tabella gestione spazio libero-tabella gestione spazio occupato-root dir(directory radice FS)-file e directory
+
+ALLOCAZIONE - GESTIONE SPAZIO OCCUPATO
+
+PROBLEMA allocazione del fs-> dato il concetto di FILE, trovare i blocchi che compongono quel file
+
+ALLOCAZIONE CONTIGUA: file memorizzati in sequenze contigue di blocchi (accesso sequenziale/diretto è efficiente -> blocchi contigui non necessitano di op seek)
+                      PROBLEMI: -i file non hanno per tutta la vita la stessa dimensione. Quando si vuole aggiungere dati a un file già allocato in sequenza
+		                 si andrebbe a sovrascrivere i dati del file successivo -> APPLICABILE AI FILE SISTEM DI SOLA LETTURA (es: CD ROM)
+                                -FRAMMENTAZIONE ESTERNA
+		      
+
+ALLOCAZIONE CONCATENATA: file costituiti da liste concatenate di blocchi. Ogni blocco contiene puntatore al blocco successivo.
+			 (descrittore di file contiene punatori al primo e ultimo elem della lista)
+			 Risolto il problema della lunghezza dei file che ora possano crescere.
+			 PROBLEMI: -accesso diretto non possibile (op di seek è necessaria, ed è costosa)
+				   -parti di file sparpagliate sul disco -> perdita prestazioni 
+                                   -blocchi di mem secondaria hanno come ampiezza una potenza di 2 (4K in genere)
+				    -> per mettere il puntatore all'elemento successivo bisogna togliere dei byte -> il blocco non è più potenza di 2 (più scomodi da gestire)
+                                    SOLUZIONE: minimizzare OVERHEAD dovuto ai puntatori riunendo blocchi in cluster (di 4/8/18 blocchi) e allocandoli in modo indivisibile
+  					       (diminuisce lo spazio usato per i puntatori ma può aumentare la FRAMMENTAZIONE INTERNA)
+
+ALLOCAZIONE BASATA SU FAT: basato su allocazione concatenata ma si usa una TABELLA FAT (file allocation table) unica con un elemento per blocco per gestire gli indici
+                           (invece dei puntatori contenuti nei blocchi). Tale tabella contiene solo INDICI e può essere implementata con un ARRAY
+                           Questa soluzione riporta i blocchi a potenze di 2 e semplifica l'accesso ai vari blocchi
+			   FAT-> vettore di indici dove l'elemento i-esimo indica qual è il blocco successivo al blocco i-esimo dati
+			   Questa implementazione ci permette di fare caching di intere porzioni di FAT in memoria
+			   DIRECTORY del tipo: nomeFile|startIndex|endIndex
+			   Svantaggio: scansione richiede lettura della FAT, aumentando num accessi in memoria -> INEFFICIENTE PER ACCESSO DIRETTO
+                         
+
+ALLOCAZIONE INDICIZZATA: associato ad un file c'è un blocco indice, tale blocco contine indici dei vari blocchi che contengono la sequenza di blocchi che compongono i file (puntatori ai blocchi dati)
+			 -risolve (come alloc. concat.) il problema della frammentazione esterna ed è efficiente per accesso diretto   
+			 - si ha una ampiezza max del file data dalla dimensione del blocco che contiene gli indici (soluzione: indice multilivello, cioè più di un blocco per gli indici)
+			
+IN UNIX
+
+Allocazione indicizzata: ogni FILE è associato a un I-NODE (indice di nodo)
+I-NODE: DESCRITTORE DI FILE (struttura dati ARRAY DI BLOCCHI) che contiene (1) attributi del file e (2) indici di blocchi (diretti e indiretti)			                                          
+        -> i file poccoli sono indicizzati indirettamente
+-c'è AMPIEZZA MASSIMA DI FILE
+-buone performance per accesso sequenziale
+-fornisce pre-caricamento di blocchi (leggendo un blocco fa caching anche del successivo)
+-combinazione di allocazione contigua ed indicizzata
+
+
+GESTIONE SPAZIO LIBERO
+
+MAPPA DI BIT: ogni bit corrisponde a un blocco, tale bit è a 1 per 'blocco occupato', a 0 altrimenti
+- ci permette di cercare blocchi liberi nelle vicinanze di blocchi di file che richiedono altra memoria (facilita allocazioni contigue)
+
+LISTA CONCATENATA PER SPAZI LIBERI
+-blocchi liberi mantenuti in una lista concatenata 
+-si integra con il metodo FAT, cioè blocchi liberi ed allocati nella stessa tabella (provoca FRAMMENTAZIONE dei contenuti) -> allocazione di aree contigue difficoltosa
+-oppure si usa una lista concatenata a blocchi in cui i blocchi liberi sono usati per concatenare gli altri)
+
+DIRECTORY: file speciale gestito dal FS che contiene info sui file che contiene
+            -> ogni DIRECTORY suddivisa in DIRECTORY ENTRY
+
+DIRECTORY ENTRY: permette di accedere a tutte le info sui file della directory (nome, attributi,..) 
+
+FAT -> info sul file all'interno della directory
+UNIX -> info file (tranne nome) contenuta nella struttura I-NODE che sono memorizzati separatamente
+
+Implementazione directory:
+#attributi contenuti nelle DIRECTORY ENTRY oppure I-NODE
+#lista lineare vs hash table
+
+-info nelle DIRECTORY ENTRY (used by MS-DOS): directory è un vettore di record ognuno dei quali contiene nome, attributi e locazione
+-info negli I-NODE (used by UNIX): memorizzazione degli attributi indiretta, MAPPING equivale a NOME<->INDICE DI I-NODE corrispondente
+                                   Tutte le altre info saranno mantenute nell'I-NODE. Il NOME del file è usato nella tabella per avere corrispondenza con l'indice dell'i-node
+-lista lineare (array): semplice da implementare ma inefficiente per directory di grandi dimensioni
+-tabella hash: tempi di accesso limitati ma problemi di collisioni
+
+PROBLEMA: lunghezza dei nomi nella memorizzazione delle tabelle
+SOLUZIONE: inizialmente lungezza nomi FISSA. Oggi si utilizza lunghezza VARIABILE (memorizzazione basata su sequenza di record di lunghezza variabile o su concatenazione di stringhe precedute record di lunghezza fissa)
+                                             Prima implementazione permette lettura sequenziale delle directory
+
+DIRECTORY STRUTTURATA A GRAFO ACICLICO
+-link simbolici
+-hard link
+
+HARD LINK
+-link fisici: occorre che le info dei file siano separate sugli inode dal nome:
+--> Questo poichè se si vuole rendere accessibile un file attraverso più PATHNAME (nomi) senza voler duplicare le info sul file
+    occorre che siano memorizzate (a parte) su i-node e i vari nomi siano link all'i-node
+Directory come sequenza di coppie nome<->num i-node 
+-> si fa in modo che più elementi di directory all'interno della stessa directory di directory diversi puntino allo stesso i-node anche se hanno nomi diversi 
+
+LINK SIMBOLICI
+-file memorizzati come ordinari in cui nell'inode viene indicato che quello è un SIMBOLIC LINK ad un'altro i-node
+Il contenuto di tali file è quindi un link ad altri file che contengono informazioni
+
+-HL: nomi diversi corrispondono a numeri di i-node uguali
+-SL: i-node number diversi ma che possano avere lo stesso contenuto
+I dati dei simbolic link sono pathname ai file da utilizzare
+E' possibile fare HARD LINK solo di file, no di directory (genererebbe un loop infinito nelle navigazioni all'interno del FS)
+
+-> un FILE cessa di esistere quando il num di nomi che ha diventa 0 e nessuno ha il file aperto
+
+Miglioramento prestazioni FS:
+-fare cache dei blocchi recentemente usati
+-tenere TABELLA DESCRITTORI DI FILE aperti come cache all'interno della mem primaria 
+-buffer di traccia e buffer di blocco per DMA
+->queste ottimizzazioni creano però FRAGILITA' del FS (violano la coerenza di un FS, ad es rischio di perdita dati o degenerazioni progressive struttura FS)
+
+Tecnica per garantire COERENZA:
+-meccanismi di caching possono causare incoerenza nel FS (ad es a causa interruzione di corrente)
+SOLUZIONI: curare (FS CHECKER) o prevenire (JOURNALING FILE SYSTEM)
+-> perdita dati è problema secondario (non sempre possibile) => l'importante è ripristinare la STRUTTURA del FS
+->se la struttura è incoerente è un danno che si propaga
+
+Controlli COERENZA: 
+FSCK -> FS CHECK di UNIX
+   -scandisce tabella i-node linearmente
+       -controlla incoerenze (es ampiezza non corrisponde alla quantità di blocchi allocati)
+       -ricostruisce elenco blocchi occupati e liberi (blocco dati mai condivisi tra file, o di uno o di un'altro)
+          -> se risulta utilizzato da più file si prende un blocco libero e si duplica (ripristinata coerenza strutturale ma non di contenuti)
+       -controlla coerenza num riferimenti inode
+   -visita l'albero a partire dalla radice
+      -vede gli i-node raggiunti e se ci sono sottoalberi non raggiungibili
+
+FILE SYSTEM BASATI SU LOG
+=> di tipo JOURNALING
+-ogni aggiornamento su fs trattato come transazione e memorizzato
+-ogni transazione è messa in una lista lineare di op da fare, periodicamente si svolgono alcune operazioni e si esegue il commit. Quelle completate sono quindi rimosse dal LOG 
+   ->ciò permette di ripristinare uno stato coerente
+LOG -> memorizza tutte le transazioni 
+
+FS EX2 -> non ha JOURNALING
+FS EX3/4 -> hanno J.
+
+-non è possibile fare FSCK mentre il fs è in uso
+
+NOMI FILE MS-DOS-FAT: 8+3 caratteri
+------------------------------------------------------------------------------------------
+DISABILITARE INTERRUPT -> NON funziona su sistemi MULTIPROCESSORI
+                       -> pericoloso, il SO lascia ai processi il compito di riattivarli. Si perde parallelismo
+
+SPINLOCK (TEST&SET) -> meccanismo di controllo continuo di una sezione critica per verificare quando è bloccata 
+		    -> applicabili sia a sistemi MULTIPROCESSORE che MONOPROCESSORE
+                    -> permette sezioni critiche multiple (ognuna definita con una propria variabile)
+		    -> cons: utilizza busy waiting
+
+->fairness: si potrebbe dire che il semaforo fair non e’ FIFO in un certo caso speciale: infatti è effettivamente FIFO solo per il primo che
+riesce a prendere la mutex, quindi uno spinlock potrebbe arrivare per secondo e prendere quell’altro
+
+=> Linux contiene una sua implementazione dei semafori, contenenti i comandi up() e down() che sono
+l’equivalente dei P() e V(), e anche delle implementazioni dello spinlock.
+
+MASCHERAMENTO INTERRUPT – perché non possiamo usarlo nei sistemi MULTIPROCESSORI?
+Il mascheramento degli interrupt previene l'interruzione del esecuzione del processo corrente e il context switch a un altro processo.
+Ciò porta alla non atomicità delle istruzioni che stava eseguendo il processo. 
+Anche disabilitando gli interrupt (è uguale se su un solo processore o su tutti) c'è comunque la possibilità che altro codice eseguito 
+in parallelismo reale vada in concorrenza con quello dove si sta cercando di ottenere una sezione critica.
+------------------------------------------------------------------------------------------------------------------
+POSIX Capability
+Le capability POSIX sono un modo per separare i privilegi che ha root. Nel modello classico di
+autorizzazione di UNIX c’erano utenti e root, e quest’ultimo era quello che poteva fare tutto nel
+sistema. Root inoltre ha diversi privilegi, per esempio fa boot, spegne la macchina…
+Siccome la maschera è rw, anche se l’utente Jane ha settato lastringa dei permessi a rwx, nella
+pratica avrà comunque un accessolimitato a rw- (e non rwx).
+=> Root poteva accedere senza restrizioni a qualsiasi risorsa del sistema. 
+
+Molti programmi, però, eseguono come root solo per ottenere alcuni di questi privilegi.
+Le capabilities POSIX => sistema per permettere di attribuire solo alcuni privilegi dell’utente root che possono essere utili a un processo in un dato momento.
+Root può dare capability ai processi.
+
+Ci sono quindi 3 insiemi di permessi:
+• Effective Set: capability che il processo possiede ad un certo istante, ed è contenuto nel Permitted Set (detti anche permessi effettivi).
+• Permitted Set: contiene il massimo insieme di capability che un processo possiede.
+• Inheritable Set: sottoinsieme di capability che un processo può lasciare in eredità ai suoi sottoprocessi (detti anche permessi ereditabili).
+
+I primi (permessi effettivi) sono quelli che l’utente può usare, e che possono essere cambiati nei limiti
+dei permessi, i secondi (permessi ereditabili) invece sono quelli che uno può passare ai propri figli
+(cosa che avviene quando facciamo una exec(), ma non una fork() che invece mantiene le capabilities così come sono).
+-> riusciamo grazie a questi ad avere una granulità più bassa dei permessi di root.
+
+DAC & MAC
+Discretionary Access Control (DAC) -> modello che di solito noi programmatori abbiamo in mente quando vogliamo creare un file, 
+                                      ovvero noi decidiamo quali permessi si possono dare a un certo oggetto 
+                                   -> controlli di accesso sono basati sull'identità dei soggetti e sui permessi di accesso assegnati agli oggetti
+
+Organizzazioni in cui si hanno modelli di accesso non discrezionali:
+Mandatory Access Control (MAC) -> i permessi vengono attribuiti in base al ruolo dell’utente che ha creato tale file, e non dalla sua volontà.
+                               -> controllo degli accessi basato su regole e informazioni associate ai soggetti ed agli oggetti. 
+                               -> il proprietario non ha privilegi speciali: etichette associate esternamente e non determinate dal proprietario.
+-----------------------------------------------------------------------------------------------------------------------
+Meccanismo di salt per le password
+Se uno riesce ad avere il file delle password criptate, può eseguire un attacco detto ATTACCO DATABASE (o rainbow table)
+-> si prende il vocabolario in chiaro (proprio il vocabolario delle parole italiane) e lo criptiamo,
+   poi vediamo se una di queste parole corrisponde ad una delle database entry.
+
+DIFENDERSI da questo tipo di attacchi: uso del SALT (sale)
+-> non criptiamo solo la parola stessa, ma criptiamo questa + un numero casusale (il salt) che viene memorizzato in chiaro nel file delle password.
+In questo modo nel database dell’attaccante, devo aggiungere non solo la codifica della parola
+“mamma”, ma anche la codifica di “mamma” + ciascun valore del sale.
+Oggi la codifica delle password viene sempre fatta con sistemi di salt.

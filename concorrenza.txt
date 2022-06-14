@@ -1,0 +1,1114 @@
+c1 11 settembre 2017
+
+monitor crossing
+
+	condition ok2dir[4];     
+	bool isFree = true;
+
+	proc entry enter(int dir)
+   		if (!isFree)
+      			ok2dir[dir].wait();
+  		isFree = false;
+
+
+	proc entry exit(int dir)
+   		isFree = true;
+  		ok2dir[(dir + 1) % 4].signal();
+   		if (isFree)
+      			ok2dir[(dir + 2) % 4].signal();
+   		if (isFree)
+      			ok2dir[(dir + 3) % 4].signal();
+   		if (isFree)
+      			ok2dir[(dir + 4) % 4].signal();  //sblocca nella sua stessa dir
+
+--------------------------------------------------------------------------------------------------------
+c2 17 luglio 2018
+//l'accesso allo stack in lettura e scrittura avviene in mutua esclusione con politica FIFO
+//l'inserimento e rimozione di elementi dallo stack ha politica LIFO
+
+producer: process[1,...,N] 
+ while True:
+	value = produce()
+	lifobuf.push(value)
+
+
+consumer: process[1,...,M]
+ while True: 
+	value = lifobuf.pop()
+	process(value)
+
+class LIFOBuffer {
+	stack<T> s;
+	semaphore mutex(1); 
+	semaphore ok2consume(0);
+
+	void push (T value) {
+		mutex.P();
+		s.push(value);
+		mutex.V()
+
+		ok2consume.V()  
+	}
+
+	T pop () {
+		T value;
+
+		ok2consume.P();
+		mutex.P();
+		value = s.pop();
+		mutex.V();
+
+		return value;
+	}
+}
+
+-------------------------------------------------------------------------------
+
+c1 14 febbraio 2019
+
+Condizioni entrata monitor:
+- monoP su monobinario(int) == 1 
+- monoV ha sempre accesso al monitor per ogni monobinario
+
+monitor monobinarysem
+
+	int monobinario   //sem che assume val 0/1
+	int numBlocked    //numero processi bloccati
+	condition ok2Enter
+
+	monobinarysem()
+		monobinario = 1
+		numBlocked = 0
+
+	procedure entry monoP()
+		if(monobinario == 0)
+			numBlocked++
+			ok2Enter.wait()
+			numBlocked--
+		else 
+			monobinario = 0
+
+	procedure entry monoV()
+		if(monobinario == 0)
+			if(numBlocked > 0)
+				ok2Enter.signal()                
+			else //nessun processo da sbloccare
+				monobinario = 1
+
+--------------------------------------------------------------------------------
+
+			
+c2 14 febbraio 2019
+
+Dato MP asincrono:
+-pssend -> bloccante (sincrona)
+-psreceive -> non bloccante -> ritorna "none" se non ha ricevuto alcun mex
+
+void pssend(obj msg, process dest){
+	asend(<getpid(),msg>, dest)
+	ack = areceive(dest)	
+}
+
+//si auto manda un msg con un tag, poi fa la receive finchè non riceve il suo proprio msg
+//riceve i msg uno dopo l'altro usando una coda
+//i msg ricevuti da altri utenti per il quale viene mandato l'ack saranno quelli ricevuti prima del TAG
+obj psreceive(process sender){
+
+	list msgReceived                             //lista per tenere i msg ricevuti
+	asend(<getpid(),TAG>, getpid())              //si auto manda un msg di tag con il proprio id
+
+	while(true)		
+		<realsender, msg> = areceive(*)
+		
+		//metti in coda msg ricevuti fino all'arrivo del tag
+		if(msg == TAG && realsender == getpid())
+			break
+		else
+			msgReceived.add(<realsender, msg>)
+	
+	if(msgReceived.search(sender) != NULL)       //si ricercano msg inviati dal sender, se non trovati si ritona 'none' 
+		<snd, m> = msgReceived.get(sender)
+		asend(ack, snd)
+		return m
+	else
+		return NONE
+		
+}
+
+
+
+---------------------------------------------------------------------------
+
+c2 11 settembre 2017
+
+Dato MP asincrono:
+
+-n server e i=[0 : n-1]
+-client/server sono flag che indicano il tipo di processo che ha invitao il mex
+
+process client	
+	i=random(n)           //scelta casuale del server a cui spedire il mex
+	obj m=createMessage()
+	asend(<client,m>, i)  //spedisce mex m a server i
+
+process server[i] 
+	obj msg
+	flag sender
+	list<obj> bufferMsg                               //struttura dati lista che contine i mex inviati ai server (ogni server ha la propria lista privata)
+
+	<sender,msg>=areceive(any)
+
+	if(sender==client)                                //si aggiorna il proprio buffer di mex e il buffer degli altri server 
+		bufferMsg.add(msg)
+		for(int j=0; j<n; j++)
+			if(j!=i)								
+				asend(<server,msg>, j)    //si aggiornano i buffer degli altri server inviandogli il mex con il flag server
+	else                                              //sender==server -> msg inviato da un server, il processo server si limita ad aggiornare il proprio buffer
+		bufferMsg.add(msg)		
+
+	bufferMsg.print()				  //stampa lista di mex ricevuta dai server
+
+
+
+-----------------------------------------------------------------------------------
+
+c1 24 maggio 2012
+
+Presupposto: un fedele sul ponte deve arrivare a destinazione. Non si può fermare sul ponte
+Condizione entrata sul ponte ANDATA:
+  (nRitorno == 0) && (nSantuario + nAndata) < MAXSANTUARO && nAndata < MAXPONTE)
+Condizione entrata sul ponte RITORNO:
+  (nAndata == 0) && (nRitorno < MAXPONTE)
+  
+
+const: MAXSANTUARO,MAXPONTE
+
+monitor santuario
+
+	int nSantuario                           //num persone nel santuario
+	int nAndata                              //num persone sul ponte in direzione di andata
+	int nRitorno                             //num persone sul ponte in direzione di ritorno
+	condition attesaAndata
+	condition attesaRitorno
+
+	santuario(){nSantuario = nAndata = nRitorno = 0}
+
+	proc entry entraponte(int direzione)
+		if(direzione==ANDATA)
+			if (!((nRitorno == 0) && (nSantuario + nAndata) < MAXSANTUARO && nAndata < MAXPONTE)))				
+				attesaAndata.wait()
+			nAndata++
+			if (nSantuario + nAndata) < MAXSANTUARO && nAndata < MAXPONTE))    //si sbloccano gli altri fedeli in attesa di entrare sul ponte dir ANDATA
+                           attesaAndata.signal()
+		else
+			if(!((nAndata == 0) && (nRitorno < MAXPONTE)))
+				attesaRitorno.wait()
+			nSantuario--
+			nRitorno++
+			if (nRitorno < MAXPONTE)                                           //si sbloccano gli altri fedeli in attesa di entrare sul ponte dir RITORNO
+                        	attesaRitorno.signal()
+		
+
+
+	proc entry esciponte(int direzione)
+		if(direzione==ANDATA)
+			nSantuario++
+			nAndata--
+			if(nAndata == 0)
+				attesaRitorno.signal()
+		else
+			nRitorno--
+			if(nRitorno == 0)
+				attesaAndata.signal()
+			
+
+
+Problema di deadlock: santuario con numero massimo di fedeli e fedeli bloccati sul ponte in direzione di andata.Risolvibile con controllo prima di entrare sul ponte affinche 
+n persone nel santuario più quelle sul ponte in dir di anadata sia minore di MAXSANTUARIO
+
+Problema di starvation: necessità di aspettare che tutti i fedeli siano entrati/usciti dal santuario. Risolvibile con il controllo appena un fedele esce dal ponte in qualsiasi
+direzione, se il ponte è libero allora si manda un segnale per sbloccare i fedeli in attesa all'ingresso sull'altra direzione
+
+-------------------------------------------------------------------------------------------
+
+c2 24 maggio 2012
+
+MP asincrono
+
+s2send(m,dest1,dest2) -> invia m sia a dest1 che dest2
+m=s2recieve(sender) -> riceve un mex in maniera sincrona
+mittente e 2 dest si devono riattivare solo quando entrambi hanno ricevuto il mex
+
+void s2send(obj m, proc dest1, proc dest2){
+	asend(<getpid(),m>, dest1) 
+	ack1 = areceive(dest1)
+	asend(<getpid(),m>, dest2)
+	ack2 = areceive(dest2)
+	//invio ack ai destinatari per indicare che entrambi hanno ricevuto il mex, invertiti
+	asend(ack2, dest1)
+	asend(ack1, dest2)
+}
+
+obj s2recieve(proc sender){
+	obj msg
+	pid sende_r
+	<sende_r, msg> = arecieve(sender)
+	asend(ack, sende_r)
+	//per riattivarsi deve avere la conferma dal sender che anche l'altro dest abbia ricevuto il mex
+	ack_ = areceive(sender)
+	return msg
+}
+
+
+----------------------------------------------------------------------------------------------
+
+c1 17 luglio 2018
+
+
+"type"->tipo di birra con cui riempire il bicchiere -> di tipo int e type=[0 : NBEERS-1] 
+"quantity"->quantità di birra "type" con cui bisogna riempire il bicchiere
+"capacity"->capacità di birra con cui il magazziniere riempie il fusto vuoto
+change_keg restituisce la capacità con cui il magazziniere riempie il fusto
+
+
+#define NBEERS            //num fusti con tipi di birra diversi
+#define KEG_CAPACITY      //capacità massima di un fusto
+
+process barista 
+	while true:
+		(type,quantity) = get_order()
+		delirium.pour(type,quantity)
+
+process magazziniere 
+	while true:
+		type = delirium.isempty()
+		capacity = change_keg(type)
+		delirium.loaded(type,capacity)
+
+
+monitor Delirium
+	  
+
+int availableBeer[];       // Un elemento per Type 
+
+Queue requests[];          // Array di code. Ogni elemento della coda è la quantità di birra rimanente da versare al cliente la cui richiesta era stata interrotta causa fine birra nel fusto 
+Queue pendingRequests;     // Richieste sostistuzione fusto a magazziniere 
+
+condition: Ok2Load;
+condition: Ok2Pour[];      // Un elemento per Type
+
+Procedure entry: void Pour(Type t, Quantity c)
+{
+    if (c > availableBeer[t]) // Richiesta maggiore della birra disponibile
+    {
+        c -= availableBeer[t];
+        availableBeer[t] = 0;              
+        requests[t].Enqueue(c);
+        if (requests[t].Length == 1)      // Risveglio un magazziniere solo se è la prima richiesta di questo tipo di birra finita (quella che ha svuotato il fusto), cioè se non c'è un altro magazziniere che stanno già cambiando quello stesso fusto
+        {
+            pendingRequests.Enqueue(t);   // Si mette la richiesta in coda al magazziniere per cambiare il fusto
+            Ok2Load.Signal();             // Si sblocca il primo magazziniere in coda 
+        }
+        Ok2Pour[t].Wait();
+        requests[t].Dequeue();            // Quando il fusto è stato riempito si può togliere la richiesta per finire di servire il cliente in attesa
+    }
+    availableBeer[t] -= c;
+}
+
+Procedure entry: Type isEmpty()
+{
+    if (pendingRequests.Length == 0)
+    {
+        Ok2Load.Wait();
+    }
+    return pendingRequests.Dequeue();
+}
+
+Procedure entry: Loaded(Type t, Capacity c)
+{
+    availableBeer[t] += c;
+    while (requests[t].Length > 0 && availableBeer[t] > requests[t].head())
+    {
+        Ok2Pour[t].Signal();
+    }
+
+    if (requests[t].Length > 0)          // Se il fusto è stato svuotato prima che le richieste per quella birra siano state tutte soddisfatte -> bisogna ricambiare il fusto
+    {
+        pendingRequests.Enqueue(t);
+        Ok2Load.Signal();
+    }
+}
+
+
+---------------------------------------------------------------------------------------------------------------
+
+c1 15 settembre 2021
+
+Proc che chiama at_least(n) vuole sync con almeno n proc, incluso se stesso
+
+-W[k] -> num di processi in attesa di essere almeno k
+-s[n] = w[1] +..+ w[n] -> num di processi soddisfacibili
+
+
+#define MAXSYNC                                             // num max di processi sincronizzabili -> dimesione max array 
+
+monitor alvr
+
+	int W[MAXSYNC]
+	int S[MAXSYNC]
+	condition ok2sync[MAXSYNC]                          // W[n]+1 < n condizione di blocco
+	
+	alvr(){for(i=1, i<=MAXSYNC, i++){W[i]=0; S[i]=0;}}      
+
+	proc entry void at_least(int n)
+
+		W[n]++ 
+		S[0] = 0                            
+		for(i=1; i<=MAXSYNC; i++)         //il calcolo di s deve proseguire fino a MAXSYNC perchè una chiamata di at_least(n) può riattivare processi in attesa per valori superiori
+			S[i] = S[i-1] + W[i]
+		
+		int maxIndex = 0
+		for(i=1; i<=MAXSYNC; i++)
+			if(S[i] >= i)
+				maxIndex = i
+
+		if(maxIndex == 0)                           //si blocca se non esiste maxIndex t.c. S[i] >= i 
+			ok2sync[n].wait()
+		else                                        //si sbloccano tutti i processi soddisfacibili 
+			for(i=1; i<=n; i++)
+				while(W[i]>0)
+					W[i]--
+					ok2sync[i].signal()
+			for(i=1; i<=n; i++)                 //processi soddisfacibili sono stati sincronizzati
+				S[i] = 0
+			
+			
+----------------------------------------------------------------------------------------------------------------------
+
+c2 15 settembre 2021
+
+Dato MP sincrono
+Senza processi server scrivere MP SINCRONO CONCATENATO
+
+chained_send -> fa in modo che i proc in dests ricevano il mex
+proc chiamante chained_send si blocca fino a quando il primo proc di dests non chiama una chained_recv	
+il primo si sblocca quando il secondo chiama la chained_recv
+
+void chained_send (T msg, list_of_pids dests) {
+
+  if(!dests.isEmpty()) {
+    /* prendo il primo destinatario, si occuperà lui di mandare al 
+     * secondo della lista */
+    pid firstDest = dests.removeHead();
+    ssend(<msg, dests>, firstDest);
+  }  
+}
+
+T chained_recv() {
+
+    T msg;
+    list_of_pids destsRemained; /* lista dei destinatari mancanti */
+    <msg, destsRemained> = srecv(ANY);
+    if(!(destsRemained.isEmpty)) {
+      pid nextDest = destsRemained.removeHead();
+      ssend(<msg, destsRemained>, nextDest);
+    }
+
+    return msg;  
+}
+		
+			
+		   
+-----------------------------------------------------------------------------------------------------------
+c1 23 giugno 2021
+
+#define NDELAY
+
+monitor delayvalue
+	
+	int nblockProc
+	int retval
+	condition const_block_proc
+
+	delayvalue(){nblockProc=0; retval=0;}
+
+	proc entry int delay(int value)
+		retval = value
+		if(nblockProc<NDELAY)
+			nblockProc++
+			const_block_proc.wait()
+		else
+			const_block_proc.signal()
+			nblockProc++
+			const_block_proc.wait()
+		nblockProc--
+		rerurn retval
+
+		
+---------------------------------------------------------------------------------------------------------------
+c1 26 maggio 2021
+
+monitor bss
+	list_of_T buffer
+	int nWaitPut
+	int nWaitGet
+	condition ok2put
+	condition ok2get
+
+	bss(){buffer=new list_of_T(); nWaitPut=0; nWaitGet=0;}
+	
+	proc entry void put(T value)	
+		if(nWaitGet == 0)
+			nWaitPut++
+			ok2put.wait()
+			nWaitPut--	
+	
+		buffer.add(value)
+
+		while(nWaitGet > 0)    //sblocca tutte le get in attesa
+			ok2get.signal()			
+		
+
+	proc entry list_of_T get()
+		list_of_T retbuf
+		if(buffer.isEmpty())
+			nWaitGet++
+			if(nWaitPut>0)       
+				ok2put.signal()   // sblocca una put e si mette in coda aspettando che la prima put eseguita sblocchi tutte le get in attesa				
+			ok2get.wait()
+			nWaitGet--
+		retbuf = buffer                   // salva lo stato del buffer da ritornare prima di sbloccare tutte le put
+		while(nWaitPut > 0)               // il primo get che arriva
+			nWaitPut--
+			ok2put.signal()	
+
+		return retbuf
+		
+					
+-------------------------------------------------------------------------------------------------------------------
+c2 23 giugno 2021
+
+Servizio semafori a priorità LIFO usando semafori FAIR
+
+PLV -> se riattiva processo sceglie quello a prio max. A parità di priorità sceglie quello in attesa da meno tempo
+Implementazione logica semaforo: lista per mantenere i sem bloccati. Inserimenti sem bloccati avvengono in coda.
+Quindi l'ordine di tempo dei semafori in attesa è decrescente dalla testa alla coda della lista.
+Ogni volta che si deve riattivare un proc si itera sulla lista scegliedo quello a prio maggiore, a priorità di prio si sceglie l'ultimo trovato (da meno tempo)
+
+struct Proc:
+     int prio;
+     Semaphore sem;
+
+
+class lifoSem{
+	BinarySem mutex = new BinarySem(1);
+	ArrayList<Proc> lifoBuf;              
+	int value;
+	
+	lifoSem(int v){lifoBuf = new ArrayList<Proc>(); value = v;}
+
+	void PLP(int prio){
+		mutex.P();
+		if(value > 0){
+			value--;
+			mutex.V();		
+		}else{
+			S = new BinarySem(0);
+			lifoBuf.addtail(<prio, S>);                       // aggiunge elemento in coda
+			mutex.V();
+			S.P();
+			free(S);		
+		}
+	}
+	
+	void PLV(){
+		mutex.P();
+		if(lifoBuf.isempty()){
+			value++;		
+		}else{
+			Proc* toRemove = lifoBuf;
+			for-each proc in lifoBuf
+				if(proc.prio >= toRemove->prio)
+					toRemove = &proc;
+			<prio, S> = lifoBuf.remove(toRemove);            //rimuove proc con priorità maggiore
+			S.V();	
+		}
+		mutex.V();
+	}
+}
+
+-----------------------------------------------------------------------------------------------------------------------
+c1 19 settembre 2018
+
+carrello trasporta MAX valigie 
+-> nella LOADING STATION il carrello si ferma quando si riempie completamente
+-> nelle altre STATION[] il carrello sosta fino a quando tutte le valigie per quella dest sono state tutte scaricate
+
+int airport_codes = [BLQ, CDG, BRX, LGW, FCO, ....]
+## l'elemento 0, BLQ (codice di Bologna) corrisponde alla stazione di caricamento
+cart: process
+	while True:
+		for code in airport_codes:
+			dispatch.cartat(code) # il carrello è alla postazione code
+
+loadingstation: process
+	while True:
+		dstcode,owner = read_barcode()
+		dispatch.load(dstcode, owner) #carica la valigia del viaggiatore owner diretto a dstcode
+
+station, for dstcode in airport_codes[1:]: process
+	while True:
+		owner = dispatch.unload(dstcode) #scarica dal carrello la valigia dell'utente owner
+		process_luggage(ownder, dstcode)
+
+#define MAXSTATIONS   //num max di stazioni
+#define MAX           //num max valigie su carrello
+
+monitor dispatch
+
+	int currentCode
+	queue stations[]                         //ogni elemento dell'array è una stazione di destinazione che presenta una coda di valige indicate dal nome del relativo utente. Il size di tale coda è il num di valigie da scaricare alla specifica dest                  
+	int bagsOnCart
+	condition ok2move                        //cond spostamento carrello: (code==0 && bagsOnCart==MAX) || (code!=0 && stations[code].isempty() )
+	condition ok2load                        //cond caricamento valigie: bagsOnCart < MAX
+	condition ok2unload[]                    //cond scaricamento valigie a stazione 'code': !stations[code].isempty()
+	
+	dispatch(){currentCode = 0; bagsOnCart = 0;}
+
+	proc entry cartat(int code)
+		currentCode = code;
+		if(code == 0){                   //stazione di caricamento: bloccante finchè carrello non riempito con max num di valigie
+			if(bagsOnCart < MAX){
+				ok2load.signal();
+				ok2move.wait();			
+			}	
+		}else{                           //stazione di scaricamento: bloccante finchè tutte le valigie per quella dest non sono state tutte scaricate
+			if(!stations[code].isempty()){
+				ok2unload[code].signal();
+				ok2move.wait();				
+			}		
+		}
+		//il (processo) cart si muove alla prossima stazione
+
+
+		
+	proc entry load(int dstcode, string owner)
+		if(currentCode != 0)
+			ok2load.wait()
+
+		if(bagsOnCart < MAX){                               //carica valigie finchè carrello non si è riempito completamente
+			stations[dstcode].enqueue(owner)
+			bagsOnCart++
+		}else{                                              //sblocca il carrello e al prossima chiamata si bloccherà
+			ok2move.signal();
+		}		
+			
+			
+
+	proc entry owner unload(int dstcode)
+		if(currentCode != dstcode)
+			ok2unload[dstcode].wait()
+
+		if(!stations[dstcode].isEmpty()){                   //scarica tutte le valigie per la dest proma di dare il segnale al carrello di spostarsi
+			bagsOnCart--
+			own = stations[dstcode].dequeue()
+			return own
+		}else{
+			ok2move.signal()
+			return NULL
+		}
+				
+-------------------------------------------------------------------------------------------------------------------------------------
+c2 26 maggio 2021
+
+MP asincrono
+-servizio mp asincrono a selezione di mittenti 
+-senders insieme di mittenti a cui inviare il mex
+
+Se semders vuoto si può ricevere mex da qualsiasi mittente. Solo da uno dei senders altrimenti.
+
+sasend(message , destination){
+	asend(<message, getpid()>, destination)
+}
+
+msg sarecv(senders){
+	msg m = TAG
+	if(senders.isempty())	
+		<msg, sender> = areceive(any)
+		return msg
+	else
+		while(m == TAG)
+			<msg, sender> = areceive(any)
+			for-each sndr in senders
+				if(sndr == sender)
+					m = msg
+		return m
+
+}
+			
+-----------------------------------------------------------------------------------------------
+*  Il monitor "semaforo con timeout" semtimeout deve fornire tre procedure entry:
+        void V(void)
+        boolean P(unsigned int timeout)
+        void tick(void)
+    Vale l'invariante dei semafori generali. La funzione tick viene richiamata ad ogni millisecondo. 
+    Un processo messo in attesa a causa di una P attende al massimo il numero di millisecondi indicato nel parametro.
+Se un processo viene riattivato per timeout la P ritorna valore vero, altrimenti falso. Le operazioni V devono riattivare i processi in attesa in ordine FIFO.
+Scrivere semtimeout.	
+
+Gestione TIMEOUT:
+-contatore che ad ogni tick viene incrementato di 1
+-si memorizza il tempo in cui deve scattare il time out (tempocorrente + timeout)
+
+monitor semtimeout
+	int value
+
+	struct blockedProc:
+		int timeout
+		bool isTimeout                                              //TRUE se sbloccato per time out, FALSE altrimenti
+		cond ok2pass 		
+
+	queue<blockedProc> waiting				            
+
+	semtimeout(int val){value=val;}                    
+	
+	proc entry void V()                                                 //non bloccante
+		if(!waiting.isempty())
+			proc toUnblock = waiting.dequeue()
+			toUnblock.ok2pass.signal()
+		else
+			value++
+			
+			
+
+	proc entry bool P(unsigned int timeout)
+		if(value == 0)
+			proc toBlock = new proc()
+			toBlock.timeout = timeout
+			toBlock.isTimeout = FALSE
+			toBlock.ok2pass = new cond()
+
+			waiting.enqueue(toBlock)
+			toBlock.ok2pass.wait()
+		
+			return toBlock.isTimeout
+		else
+			value--
+			return FALSE
+			
+			
+		
+	proc entry void tick()	                                   //non bloccante	
+		for-each proc in waiting do
+			proc.timeout--
+			if(proc.timeout == 0)                      //si sbloccano i processi che hanno concluso il timeout
+				waiting.remove(proc)               //si rimuove ovunque si trovi nella lista
+				proc.isTimeout = TRUE 
+				proc.ok2pass.signal()
+
+
+-------------------------------------------------------------------------------------------------------------------------------
+c2 12 luglio 2021
+
+class: wrongsem
+	int value = 0, count = 0
+	semaphore mutex init 1;
+	semaphore s init 0;
+
+	void wV():
+		mutex.P()
+		if value == 0 && count > 0:
+			s.V()
+		else:
+			value++			
+		mutex.V()
+
+	void wP()
+		mutex.P()
+		if value == 0:
+			count++
+			mutex.V()
+			s.P()
+			mutex.P()
+			count--
+		else:
+			value--
+		mutex.V()
+
+
+value = valore del semaforo s
+Deve valere l'invariante 'value = nv + init - np >= 0'
+
+Caso in cui value non è correttamente mantenuto:
+-si esegue un WP che incrementa count e rilascia la mutua esclusione
+-subito dopo arrivano n richieste di WV prima che WP richieda per la seconda volta la mutua esclusone dopo s.P()
+- s.V() viene eseguita n volte senza che value sia mai incrementata
+
+Soluzione:
+
+class: wrongsem
+	int value = 0, count = 0
+	semaphore mutex init 1;
+	semaphore s init 0;
+
+	void wV():
+		mutex.P()
+		value++
+		if count > 0:
+			s.V()
+		else:			
+			mutex.V()
+
+	void wP()
+		mutex.P()
+		if value == 0:
+			count++
+			mutex.V()
+			s.P()
+			count--
+		value--
+		mutex.V()
+
+Quando avviene una V il value si incrementa sempre (e se c'è un processo bloccato lo decrementa subito). 
+Il problema è risolto perché non rilasciando la mutex nella V, si "passa" al processo che si sta risvegliando.
+
+-------------------------------------------------------------------------------------------------------------------------------
+c1 12 luglio 2021
+
+2^N squadre
+
+Squadra: process( i, i∈{0, 1 , ..., 2N−1 } )
+	for turno in range(1, N):
+		forma = valutaforma(i, turno)
+		if torneo.gioca(i, turno, forma) == False:
+			print(f"la squadra {i} ha perso al {turno} turno")
+			return
+	print(f"la squadra {i} ha vinto il torneo")
+
+Condizioni di attesa:
+-non è il turno per giocare
+-l'altra squadra non è ancora arrivata (non ha ancora settato la propria forma nella partita)
+
+#define squadre 2^N
+#define turni N
+
+monitor torneo
+	struct partita:
+		int team1
+		int team2
+		int formaTeamArrivatoPrima
+		int winner
+		condition ok2play
+	int turnocorrente
+	int partiteperturno
+	condition okmyturn[turni]
+	queue<partita> girone[turni]                                              //ogni elemento dell'array è una lista delle partite da giocare ad ogni turno
+
+	torneo(){
+		turnocorrente=0
+		partiteperturno=0
+		int i=0
+		while(i<2^N)                                                      //crea le partite per il turno 1
+			partita np=new partita
+			np.team1=i
+			np.team2=++i
+			np.formaTeamArrivatoPrima=-1
+			np.winner=-1
+			girone[0].enqueue(np)
+			++i
+		}	
+	
+	proc entry bool gioca(int i, int turno, int forma)
+		bool iswinner=FALSE
+		if(turno != turnocorrente)
+			okmyturn[turno].wait()
+
+		for-each match in girone[turno]{                                   //ricerca la partita da giocare
+			if(match.team1 == i || match.team2 == i){
+				if(match.formaTeamArrivatoPrima == -1){            //l'altro team non è ancora arrivato
+					match.formaTeamArrivatoPrima = forma       //setto la mia forma e mi metto in attesa dell'altro team
+					match.ok2play.wait()
+				 }else{                                            //team arrivato dopo determina il vincitore e sblocca l'altro
+					if(forma > match.formaTeamArrivatoPrima)
+						match.winner = i
+					elseif(match.formaTeamArrivatoPrima < forma)
+						if(match.team1 == i) match.winner = match.team2
+						else match.winner = match.team1
+					else
+						match.winner = random(match.team1,match.team2)
+					
+					partiteperturno++ 
+					match.ok2play.signal() 
+				}
+				
+				if(match.winner == i)
+					iswinner = TRUE				
+				
+				if(match.winner==i && partiteperturno==girone[turno].size && turno!=N){    //il vincitore dell'ultima partita del turno si occupa di creare le partite del turno successivo               
+					partiteperturno = 0                                                //reset partite prossimo turno
+					turnocorrente++
+					while(girone[turno].size != 0)
+						int winner1=girone[turno].dequeue().winner
+						int winner2=girone[turno].dequeue().winner
+						partita newmatch=new partita
+						newmatch.team1=winner1
+					        newmatch.team2=winner2
+				                newmatch.formaTeamArrivatoPrima=-1
+			                        newmatch.winner=-1
+						girone[turno+1].enqueue(newmatch)
+					for(i=2*girone[turno+1].size; i!=0;i--)                            //sblocca tutte le squadre in attesa di giocare al turno successivo
+						okmyturn[turno+1].signal()
+				}
+			break
+			}
+		}
+		return iswinner
+
+
+soluzione 2 prof:
+
+
+monitor torneo:
+	condition ok2play[1 : 1 << n]
+	bool waiting[1 : 1 << n]
+	int forma2nd
+	bool winner
+
+	def index(i, turno):
+		return (1 << (n - turno)) + (i >> turno)
+
+	@entry
+	def gioca(i, turno, forma):
+		ix = index(i, turno)
+		if waiting[ix]:
+		  forma2nd = forma
+			ok2play[ix].signal()
+			winner = ! winner
+		else:
+			waiting[ix] = True
+			ok2play[ix].wait()
+			waiting[ix] = False
+		  winner = ck(forma, forma2nd)  // forma > forma2nd or random
+		return winner
+
+Interpretazione:
+waiting -> array di turni: elementi a 0 se nessuna delle due squadre è arrivata a 1 se la squadra indicata dall'indice è in attesa dell'altra
+calcolo indice ix data la squadra i: turno=0, n=3: i=0 ix=100, i=1 				
+
+------------------------------------------------------------------------------------------------------------------------------------
+c2 19 giugno 2017
+
+shared lock=0;
+process P {
+	int vp;
+	while (true) {
+		do {
+			TS(lock, vp);
+		} while (vp);
+	critical section
+	lock=0;
+	non-critical section
+	}
+}
+process Q {
+	int vp;
+	while (true) {
+		do {
+			TS(lock, vp);
+		} while (vp);
+	critical section
+	lock=0;
+	non-critical section
+	}
+}
+TS(vp, lock)=<vp=lock;lock=1>
+----------------------------------------------------------------------------------------------------------------------------------------
+c1 28 maggio 2018
+
+
+#define MAX
+
+monitor riempisvuota
+	proc:
+	  condition ok2exit
+	  int id
+	int procinside=0
+	bool stasvuotando=FALSE
+	proc exitarray[MAX]                              //array per implementare logica LIFO di uscita processi dal monitor. Inserimento da 0 a MAX. Uscita da MAX a 0
+	condition ok2enter
+
+	proc entry entra(int id)
+		if(stasvuotando)
+			ok2enter.wait()
+
+		procinside++
+
+		proc entrato=new proc
+		entrato.id=id
+		entrato.ok2exit=new condition
+		
+		exitarray[procinside]=entrato           //proc sull'array sono sovrascritti
+		if(procinside<MAX)
+			ok2enter.signal()
+		if(procinside==MAX)
+			stasvuotando=TRUE
+
+	proc entry esci(int id)
+		if(!stasvuotando || exitarray.getarrivedpos(id)<procinside)   //seconda condizione è per far rispettare ordine LIFO proc in uscita. Il proc corrente deve aspettare che siano usciti quelli entrati dopo di lui 
+			exitarray[getarrivedpos(id)].ok2exit.wait()
+		procinside--
+		exitarray[procinside].signal()                                //sblocca il successivo processo possibilitato a uscire nel caso fosse bloccato
+		if(procinside==0)
+			stasvuotando=FALSE
+			ok2enter.signal()
+
+
+//getarrivedpos(id) funzione di exitarray che dato l'id di un proc restituisce la posizione dell'array in cui è stato memorizzato
+
+-------------------------------------------------------------------------------------------------------------------------------------------------
+c2 28 maggio 2018
+
+In un sistema ci sono 26 processi server proc['a'], proc['b'] .... proc['z'] che usano message passing asincrono. Ogni
+processo è l'unico che può stampare la propria lettera ed esegue il seguente codice:
+proc[x]: x='a',...,'z'
+while True:
+	(c, string) = arecv(*)
+	print(x)
+	if (len(string) > 1)
+		asend(proc[string[0]], (x, string[1:]))
+e i clienti che vogliono stampare una stringa (non vuota) usano la funzione:
+def procstampa(s):
+	asend(proc[s[0]], (None, s))
+Se un cliente alla volta chiama la procstampa il sistema produce il risultato voluto ma se malauguratamente un cliente chiama la
+procstampa mentre è in corso un'altra stampa l'output delle due operazioni può mischiarsi (se il primo cliente ha chiesto di stampare
+"ciao" e il secondo "mondo" l'output potrebbe essere "cmionadoo").
+Senza aggiungere ulteriori processi e senza modificare il codice eseguito dai clienti correggere il codice dei server in modo che il
+programma concorrente funzioni correttamente in ogni caso (nell'esempio precedente venga stampato prima "ciao" e poi "mondo", o
+viceversa, ma ogni stringa venga interamente stampata prima che inizi la stampa della successiva). 
+
+//il primo server che riceve la stringa si occupa di mandare agli atri il corrispondente carattere da stampare (e non la stringa)
+
+soluzione (in parte) errata: 
+
+proc[x]: x='a',...,'z'
+while True:
+	(c, string) = arecv(*)
+	if(c==none)
+		asend('startstr', *)                                   //invia il msg 'startstr' a tutti i server	
+		while(len(string) > 1)
+			if(string[0]==x)
+				print(x)
+			else
+				asend(proc[string[0]], string[0])     //invia il caratttere da stampare al corrispondente server 
+			string++
+		asend('finishstr', *)                                 ////invia il msg 'finishstr' a tutti i server	
+			
+
+	elseif(string=='startstr')                                    //uno dei server ha ricevuto un mex da un cliente e ha mandato il mex di inizo stringa da stampare
+		while(true)
+			string = arecv(c)
+			if(string!='finishstr')
+				print(x)
+			else
+				break
+		
+soluzione corretta:
+
+void stampante() {
+		Queue<T> db;		//db dei messaggi ancora da scrivere
+		boolean isWriting;
+		while(true) {
+			<who, msg> = arecv(ANY);
+			if(who == 'db') db.enqueue(msg);
+			else if(who == 'None') {
+				//un processo ha chiesto una stampa
+				if(isWriting == false) {
+					//posso cominciare a stampare
+					for(server in proc) {
+						asend(server, <getpid(), 'isWriting'>); //avviso tutti i server di non stampare i messaggi in entrata dai processi
+						isWriting = true;
+					}
+					if(msg.length > 1) {
+						write(x);
+						asend(proc[msg[1:]], <getpid(), msg[1:]>); //mando il restante del messaggio alla prossima stampante
+					} else {
+						write(x);
+						nextMsg();
+					}
+				} else {
+					//c'è una stampa in corso quindi metto il messaggio nel db e lo mando a tutti
+					for(server in proc) {
+						asend(server, <'db', msg>);
+					}	
+					db.enqueue(msg);
+				}
+			//ramo sincro tra stampanti
+			} else if(msg == 'isWriting') {
+				isWriting = true;
+			} else if(msg == '!isWriting') {
+				isWriting = false;
+			} else {
+				if(msg.length > 1) {
+					write(x);
+					asend(proc[msg[1:]], <getpid(), msg[1:]>); //mando il restante del messaggio alla prossima stampante
+				} else {
+					write(x);
+					nextMsg();
+				}	
+			}		
+		}
+	}
+
+	void nextMsg() {
+		if(!db.isEmpty()) {
+			T nMsg = db.dequeue();
+		if(nMsg[0] == x) {
+			//devo cominciare io a stampare
+			write(x);
+			asend(proc[Nmsg[1:]], <getpid(), nMsg[1:]>);
+
+		} else {
+			//lo mando alla prima stampante
+			asend(proc[Nmsg[0]], <getpid(), nMsg>);
+		}
+		} else {
+			//se il db è vuoto dico alle stampanti che nessuno sta scrivendo
+			for(server in proc) 
+				asend(server, <getpid(), '!isWriting'>);
+			isWriting = false;	
+		}
+	}
+-------------------------------------------------------------------------------------------------------------------------------------------------
+es monitor giavellotto
+
+monitor giav 
+    int next = 0;
+    int lancio = 0;
+    Double risultati[NATLETI, 3] = { 0, 0, 0....}
+    bool lanciato = false
+    
+    cond okatleta[NATLETI] // next == atleta && risultati[atleta, lancio] == 0
+    cond okgiudice
+    procedure entry bool pronto(int atleta) {
+        if risultati[atleta, 3] > 0)
+        return False
+        if !(next == atleta && risultati[atleta, lancio] == 0 && lanciato = false)
+        okatleta[atleta].wait()
+      return True
+
+    procedure entry void lanciato(int atleta) 
+    lanciato = True;
+       okgiudice.SIGNAL();
+ 
+    procedure entry int lancioFatto() 
+       if numLancio == 3 return -1
+       if(!lanciato) okgiudice.WAIT();
+       return next;
+    
+  
+    procedure entry vodi registaechiama(int atleta, Double metri) 
+       risultato[atleta, numLancio] = metri; // > 0
+	next ++
+	if (next == NATLETI) numlancio++, next = 0
+	lanciato = false
+	okatleta[next].signal()
