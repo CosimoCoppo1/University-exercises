@@ -1,8 +1,0 @@
-{
-  "files.associations": {
-    "inotify.h": "c",
-    "limits.h": "c",
-    "execs.h": "c",
-    "stdlib.h": "c"
-  }
-}
